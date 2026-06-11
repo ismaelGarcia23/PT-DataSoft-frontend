@@ -1,3 +1,253 @@
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { getBookById, updateBook } from '../services/bookService'
+import { getGenres } from '../../genres/services/genreService'
+import { alertSuccess, alertError } from '../../../shared/utils/alerts'
+import Spinner from '../../../shared/components/Spinner'
+
 export default function EditBookPage() {
-  return <div><p className="text-gray-400">Editar libro — Parte 4</p></div>
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const [form, setForm] = useState({ name: '', summary: '', price: '', image: '', genreId: '' })
+  const [genres, setGenres] = useState([])
+  const [loadingPage, setLoadingPage] = useState(true)
+  const [loading, setLoading] = useState(false)
+  const [imgError, setImgError] = useState(false)
+
+  useEffect(() => {
+    Promise.all([
+      getBookById(id),
+      getGenres(0, 100),
+    ]).then(([book, genreData]) => {
+      setForm({
+        name: book.name ?? '',
+        summary: book.summary ?? '',
+        price: book.price ?? '',
+        image: book.image ?? '',
+        genreId: book.genere?.id ?? '',
+      })
+      setGenres(genreData.content)
+    }).catch(() => {
+      alertError('Error', 'No se pudo cargar el libro.')
+      navigate('/books')
+    }).finally(() => setLoadingPage(false))
+  }, [id])
+
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value })
+    if (e.target.name === 'image') setImgError(false)
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const payload = {
+        name: form.name || null,
+        summary: form.summary || null,
+        price: form.price ? parseFloat(form.price) : null,
+        image: form.image || null,
+        genreId: form.genreId ? parseInt(form.genreId) : null,
+      }
+      await updateBook(id, payload)
+      await alertSuccess('¡Cambios guardados!', 'El libro fue actualizado correctamente.')
+      navigate(`/books/${id}`)
+    } catch (err) {
+      alertError('Error al actualizar', err.response?.data?.message || 'Intentalo de nuevo.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loadingPage) return <Spinner />
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      {/* Breadcrumb */}
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-yellow-600 transition mb-6"
+      >
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+        Volver
+      </button>
+
+      {/* Header */}
+      <div className="bg-gradient-to-r from-yellow-500 to-amber-500 rounded-2xl px-8 py-6 mb-8 text-white shadow-lg">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+          </div>
+          <div>
+            <h1 className="text-xl font-bold">Editar libro</h1>
+            <p className="text-yellow-100 text-sm">Los campos vacíos conservan su valor actual</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Form */}
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+        <form onSubmit={handleSubmit} className="p-8 flex flex-col gap-6">
+
+          {/* Nombre */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nombre</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M3 7h18M3 12h18M3 17h12" />
+                </svg>
+              </span>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                maxLength={50}
+                placeholder="Título del libro"
+                className="w-full border border-gray-300 rounded-xl pl-9 pr-12 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+              />
+              <span className="absolute inset-y-0 right-3 flex items-center text-xs text-gray-300">
+                {form.name.length}/50
+              </span>
+            </div>
+          </div>
+
+          {/* Género */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Género</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </span>
+              <select
+                name="genreId"
+                value={form.genreId}
+                onChange={handleChange}
+                className="w-full border border-gray-300 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition appearance-none bg-white"
+              >
+                <option value="">Sin cambiar</option>
+                {genres.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Precio */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Precio</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-gray-500 font-semibold text-sm">
+                $
+              </span>
+              <input
+                type="number"
+                name="price"
+                value={form.price}
+                onChange={handleChange}
+                min="0.01"
+                step="0.01"
+                placeholder="0.00"
+                className="w-full border border-gray-300 rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+              />
+            </div>
+          </div>
+
+          {/* Resumen */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Resumen</label>
+            <div className="relative">
+              <textarea
+                name="summary"
+                value={form.summary}
+                onChange={handleChange}
+                rows={4}
+                maxLength={500}
+                placeholder="Descripción del libro..."
+                className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition resize-none"
+              />
+              <span className="absolute bottom-2.5 right-3 text-xs text-gray-300">
+                {form.summary.length}/500
+              </span>
+            </div>
+          </div>
+
+          {/* URL de imagen */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">URL de imagen</label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-3 flex items-center text-gray-400">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </span>
+              <input
+                name="image"
+                value={form.image}
+                onChange={handleChange}
+                placeholder="https://..."
+                className="w-full border border-gray-300 rounded-xl pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-transparent transition"
+              />
+            </div>
+            {form.image && !imgError && (
+              <div className="mt-3 rounded-xl overflow-hidden border border-gray-200 shadow-sm">
+                <img
+                  src={form.image}
+                  alt="preview"
+                  className="w-full h-40 object-cover"
+                  onError={() => setImgError(true)}
+                />
+              </div>
+            )}
+            {form.image && imgError && (
+              <p className="text-xs text-red-400 mt-1.5">La URL no carga una imagen válida.</p>
+            )}
+          </div>
+
+          {/* Botones */}
+          <div className="flex gap-3 pt-2 border-t border-gray-100">
+            <button
+              type="submit"
+              disabled={loading}
+              className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white py-2.5 rounded-xl font-bold text-sm disabled:opacity-50 transition shadow-md hover:shadow-lg"
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                  </svg>
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Guardar cambios
+                </>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl font-bold text-sm transition"
+            >
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
 }

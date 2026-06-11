@@ -17,6 +17,17 @@ export const alertError = (title, text = '') =>
     confirmButtonColor: '#3b82f6',
   })
 
+export const alertToast = (title) =>
+  Swal.fire({
+    toast: true,
+    position: 'bottom-end',
+    icon: 'success',
+    title,
+    showConfirmButton: false,
+    timer: 2500,
+    timerProgressBar: true,
+  })
+
 export const alertConfirm = (title, text = '') =>
   Swal.fire({
     icon: 'warning',
